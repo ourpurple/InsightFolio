@@ -1,0 +1,258 @@
+# app/ui/main_window.py
+from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+                               QPushButton, QTableView, QComboBox, QLineEdit,
+                               QHeaderView, QLabel, QTextBrowser, QMessageBox, QInputDialog, QFileDialog)
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap
+from PySide6.QtCore import Qt
+
+from app.ui.add_edit_dialog import AddEditDialog
+from app.ui.review_dialog import ReviewDialog
+from app.data.database import get_mistakes, delete_mistake, get_mistake_by_id, get_random_mistakes
+from app.logic.mistake_service import MistakeService
+from app.utils.renderer import render_latex_to_pixmap
+import os
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("启思录 (Insight Folio)")
+        self.setGeometry(100, 100, 1600, 900)
+        self.mistake_service = MistakeService()
+        self._init_ui()
+        self._connect_signals()
+        self.load_mistakes()
+
+    def _init_ui(self):
+        """初始化UI界面"""
+        main_widget = QWidget()
+        self.setCentralWidget(main_widget)
+        main_layout = QHBoxLayout(main_widget)
+
+        # 左侧列表和筛选
+        left_layout = QVBoxLayout()
+        
+        # 筛选器
+        filter_layout = QHBoxLayout()
+        self.grade_filter = QComboBox()
+        self.grade_filter.addItem("所有年级")
+        self.grade_filter.addItems([f"{g}年级" for g in range(1, 13)])
+        self.subject_filter = QComboBox()
+        self.subject_filter.addItem("所有学科")
+        self.subject_filter.addItems(["数学", "物理", "化学", "生物", "语文", "英语"])
+        self.keyword_filter = QLineEdit()
+        self.keyword_filter.setPlaceholderText("关键词搜索...")
+        self.filter_button = QPushButton("筛选")
+        
+        filter_layout.addWidget(self.grade_filter)
+        filter_layout.addWidget(self.subject_filter)
+        filter_layout.addWidget(self.keyword_filter)
+        filter_layout.addWidget(self.filter_button)
+        left_layout.addLayout(filter_layout)
+
+        # 错题表格
+        self.table_view = QTableView()
+        self.model = QStandardItemModel()
+        self.model.setHorizontalHeaderLabels(["ID", "学科", "年级", "学期", "录入日期"])
+        self.table_view.setModel(self.model)
+        self.table_view.setColumnHidden(0, True) # 隐藏ID列
+        self.table_view.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table_view.setSelectionBehavior(QTableView.SelectRows)
+        self.table_view.setEditTriggers(QTableView.NoEditTriggers)
+        left_layout.addWidget(self.table_view)
+        
+        # 操作按钮
+        button_layout = QHBoxLayout()
+        self.add_button = QPushButton("新增")
+        self.edit_button = QPushButton("编辑")
+        self.delete_button = QPushButton("删除")
+        self.review_button = QPushButton("开始复习")
+        self.export_button = QPushButton("导出PDF")
+        button_layout.addWidget(self.add_button)
+        button_layout.addWidget(self.edit_button)
+        button_layout.addWidget(self.delete_button)
+        button_layout.addWidget(self.review_button)
+        button_layout.addWidget(self.export_button)
+        left_layout.addLayout(button_layout)
+        
+        # 右侧详情区域
+        right_layout = QVBoxLayout()
+        self.details_area = QTextBrowser()
+        right_layout.addWidget(QLabel("错题详情:"))
+        right_layout.addWidget(self.details_area)
+        
+        main_layout.addLayout(left_layout, stretch=2)
+        main_layout.addLayout(right_layout, stretch=1)
+
+    def _connect_signals(self):
+        """连接信号与槽"""
+        self.add_button.clicked.connect(self.add_mistake)
+        self.edit_button.clicked.connect(self.edit_mistake)
+        self.delete_button.clicked.connect(self.delete_mistake)
+        self.review_button.clicked.connect(self.start_review)
+        self.export_button.clicked.connect(self.export_to_pdf)
+        self.filter_button.clicked.connect(self.load_mistakes)
+        self.table_view.selectionModel().selectionChanged.connect(self.display_mistake_details)
+
+    def load_mistakes(self):
+        """加载错题到表格"""
+        filters = {
+            "grade": self.grade_filter.currentText() if self.grade_filter.currentIndex() > 0 else "",
+            "subject": self.subject_filter.currentText() if self.subject_filter.currentIndex() > 0 else "",
+            "question_desc": self.keyword_filter.text()
+        }
+        
+        mistakes = get_mistakes(filters)
+        self.model.removeRows(0, self.model.rowCount())
+        for mistake in mistakes:
+            row = [
+                QStandardItem(str(mistake['id'])),
+                QStandardItem(mistake['subject']),
+                QStandardItem(mistake['grade']),
+                QStandardItem(mistake['semester']),
+                QStandardItem(mistake['record_date']),
+            ]
+            self.model.appendRow(row)
+
+    def display_mistake_details(self, selected, deselected):
+        """显示选中错题的详细信息"""
+        if not selected.indexes():
+            self.details_area.clear()
+            return
+            
+        row = selected.indexes().row()
+        mistake_id = self.model.item(row, 0).text()
+        mistake = get_mistake_by_id(int(mistake_id))
+
+        if not mistake:
+            return
+            
+        # 使用HTML来格式化显示
+        html = f"""
+        <b>学科:</b> {mistake['subject']} &nbsp;&nbsp; <b>年级:</b> {mistake['grade']} ({mistake['semester']})<br>
+        <b>录入日期:</b> {mistake['record_date']}<hr>
+        <b>题目描述:</b><br>
+        {mistake['question_desc'].replace(chr(10), '<br>')}
+        <hr>
+        """
+        self.details_area.setHtml(html)
+        
+        # 渲染题目中的LaTeX
+        question_pixmap = render_latex_to_pixmap(mistake['question_desc'])
+        if not question_pixmap.isNull():
+            self.details_area.append("<br><b>公式渲染:</b>")
+            cursor = self.details_area.textCursor()
+            cursor.insertImage(question_pixmap.toImage())
+            
+        # 显示题目配图
+        if mistake['question_image'] and os.path.exists(mistake['question_image']):
+            self.details_area.append("<br><b>题目配图:</b>")
+            pixmap = QPixmap(mistake['question_image'])
+            # 获取TextBrowser宽度以缩放图片
+            width = self.details_area.width() - 50 # 留出边距
+            cursor = self.details_area.textCursor()
+            cursor.insertImage(pixmap.scaledToWidth(width, Qt.SmoothTransformation).toImage())
+            
+        html_answer = f"""
+        <hr><b>正确答案:</b><br>
+        {mistake['correct_answer'].replace(chr(10), '<br>')}
+        """
+        self.details_area.append(html_answer)
+        
+        # 渲染答案中的LaTeX
+        answer_pixmap = render_latex_to_pixmap(mistake['correct_answer'])
+        if not answer_pixmap.isNull():
+            self.details_area.append("<br><b>答案公式渲染:</b>")
+            cursor = self.details_area.textCursor()
+            cursor.insertImage(answer_pixmap.toImage())
+
+        html_reason = f"""
+        <hr><b>错误原因分析:</b><br>
+        {mistake['mistake_reason'].replace(chr(10), '<br>')}
+        """
+        self.details_area.append(html_reason)
+
+
+    def add_mistake(self):
+        """打开新增错题对话框"""
+        dialog = AddEditDialog(parent=self)
+        if dialog.exec():
+            self.load_mistakes()
+
+    def edit_mistake(self):
+        """打开编辑错题对话框"""
+        selected_indexes = self.table_view.selectionModel().selectedRows()
+        if not selected_indexes:
+            QMessageBox.warning(self, "警告", "请先选择要编辑的错题。")
+            return
+        
+        row = selected_indexes.row()
+        mistake_id = int(self.model.item(row, 0).text())
+        
+        dialog = AddEditDialog(mistake_id=mistake_id, parent=self)
+        if dialog.exec():
+            self.load_mistakes()
+            self.display_mistake_details(self.table_view.selectionModel().selection(), None)
+
+    def delete_mistake(self):
+        """删除选中的错题"""
+        selected_indexes = self.table_view.selectionModel().selectedRows()
+        if not selected_indexes:
+            QMessageBox.warning(self, "警告", "请先选择要删除的错题。")
+            return
+
+        reply = QMessageBox.question(self, '确认删除', '确定要删除这条错题记录吗？此操作不可撤销。',
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            # Since selection mode is SelectRows, we can get the row from the first index.
+            row = selected_indexes.row()
+            mistake_id = int(self.model.item(row, 0).text())
+            try:
+                self.mistake_service.delete_mistake_with_assets(mistake_id)
+                self.load_mistakes()
+                self.details_area.clear()
+                QMessageBox.information(self, "成功", "错题已删除。")
+            except Exception as e:
+                QMessageBox.critical(self, "错误", f"删除失败: {e}")
+
+    def start_review(self):
+        """开始随机复习"""
+        filters = {
+            "grade": self.grade_filter.currentText() if self.grade_filter.currentIndex() > 0 else "",
+            "subject": self.subject_filter.currentText() if self.subject_filter.currentIndex() > 0 else "",
+        }
+        # Keyword filter for review is not in the spec, but can be added if needed.
+        # Let's stick to the spec for now.
+        
+        num, ok = QInputDialog.getInt(self, "随机抽取", "请输入要抽取的题目数量:", 5, 1, 100, 1)
+        
+        if ok:
+            mistakes = get_random_mistakes(num, filters)
+            if not mistakes:
+                QMessageBox.information(self, "提示", "没有找到符合条件的错题。")
+                return
+            
+            review_dialog = ReviewDialog(mistakes, self)
+            review_dialog.exec()
+
+    def export_to_pdf(self):
+        """将当前筛选出的错题导出为PDF"""
+        filters = {
+            "grade": self.grade_filter.currentText() if self.grade_filter.currentIndex() > 0 else "",
+            "subject": self.subject_filter.currentText() if self.subject_filter.currentIndex() > 0 else "",
+            "question_desc": self.keyword_filter.text()
+        }
+        mistakes_to_export = get_mistakes(filters)
+
+        if not mistakes_to_export:
+            QMessageBox.information(self, "提示", "没有可导出的错题。")
+            return
+
+        filepath, _ = QFileDialog.getSaveFileName(self, "保存PDF文件", "", "PDF Files (*.pdf)")
+        if filepath:
+            try:
+                self.mistake_service.export_to_pdf(mistakes_to_export, filepath)
+                QMessageBox.information(self, "成功", f"PDF文件已成功导出到:\n{filepath}")
+            except Exception as e:
+                QMessageBox.critical(self, "错误", f"导出PDF失败: {e}")
