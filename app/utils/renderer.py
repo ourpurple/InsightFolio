@@ -100,9 +100,13 @@ def render_html_with_katex(mistake_data, show_answer=True):
                 white-space: pre-wrap; /* 保留换行符和空格，以便KaTeX正确处理块公式 */
             }}
             .meta-info {{
-                font-size: 13px;
-                color: #6c757d;
+                color: #0056b3;
+                border-bottom: 2px solid #e9ecef;
+                padding-bottom: 5px;
+                margin-top: 15px;
                 margin-bottom: 12px;
+                font-size: 1em; /* Adjust font size as needed */
+                text-align: center;
             }}
             img {{
                 max-width: 100%;
@@ -115,7 +119,7 @@ def render_html_with_katex(mistake_data, show_answer=True):
         <div class="container">
             <div class="meta-info">
                 <b>学科:</b> {mistake_data['subject']} &nbsp;&nbsp;
-                <b>年级:</b> {mistake_data['grade']} ({mistake_data['semester']}) &nbsp;&nbsp;
+                <b>年级:</b> {mistake_data['grade']} {mistake_data['semester']}&nbsp;&nbsp;
                 <b>录入日期:</b> {mistake_data['record_date']}
             </div>
             

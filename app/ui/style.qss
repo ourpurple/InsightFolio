@@ -48,7 +48,6 @@ QPushButton, QPushButton#actionButton {
     padding: 8px 18px;
     font-weight: 600;
     min-width: 80px;
-    transition: background-color 0.3s ease;
     font-size: 14px;
 }
 
