@@ -1,11 +1,12 @@
 # app/ui/review_dialog.py
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QPushButton, 
-                               QLabel, QTextBrowser, QSpacerItem, QSizePolicy)
-from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QPushButton,
+                                 QLabel, QSpacerItem, QSizePolicy)
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebEngineCore import QWebEngineSettings
 from PySide6.QtCore import Qt
 import os
 
-from app.utils.renderer import render_latex_to_pixmap
+from app.utils.renderer import render_html_with_katex
 
 class ReviewDialog(QDialog):
     def __init__(self, mistakes, parent=None):
@@ -28,7 +29,8 @@ class ReviewDialog(QDialog):
         self.counter_label = QLabel()
         layout.addWidget(self.counter_label, alignment=Qt.AlignRight)
         
-        self.details_area = QTextBrowser()
+        self.details_area = QWebEngineView()
+        self.details_area.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
         layout.addWidget(self.details_area)
         
         self.answer_button = QPushButton("显示答案")
@@ -59,52 +61,14 @@ class ReviewDialog(QDialog):
         self.counter_label.setText(f"{self.current_index + 1} / {len(self.mistakes)}")
         
         mistake = self.mistakes[self.current_index]
-        
-        # 显示题目
-        html = f"""
-        <b>学科:</b> {mistake['subject']} &nbsp;&nbsp; <b>年级:</b> {mistake['grade']} ({mistake['semester']})<hr>
-        <b>题目描述:</b><br>
-        {mistake['question_desc'].replace(chr(10), '<br>')}
-        """
-        self.details_area.setHtml(html)
-        
-        # 渲染题目中的LaTeX
-        question_pixmap = render_latex_to_pixmap(mistake['question_desc'])
-        if not question_pixmap.isNull():
-            self.details_area.append("<br><b>公式渲染:</b>")
-            cursor = self.details_area.textCursor()
-            cursor.insertImage(question_pixmap.toImage())
-            
-        # 显示题目配图
-        if mistake['question_image'] and os.path.exists(mistake['question_image']):
-            self.details_area.append("<br><b>题目配图:</b>")
-            pixmap = QPixmap(mistake['question_image'])
-            width = self.details_area.width() - 50
-            cursor = self.details_area.textCursor()
-            cursor.insertImage(pixmap.scaledToWidth(width, Qt.SmoothTransformation).toImage())
+        html_content = render_html_with_katex(mistake, show_answer=False)
+        self.details_area.setHtml(html_content)
 
     def show_answer(self):
         """显示答案"""
         mistake = self.mistakes[self.current_index]
-        html_answer = f"""
-        <hr><b>正确答案:</b><br>
-        {mistake['correct_answer'].replace(chr(10), '<br>')}
-        """
-        self.details_area.append(html_answer)
-        
-        # 渲染答案中的LaTeX
-        answer_pixmap = render_latex_to_pixmap(mistake['correct_answer'])
-        if not answer_pixmap.isNull():
-            self.details_area.append("<br><b>答案公式渲染:</b>")
-            cursor = self.details_area.textCursor()
-            cursor.insertImage(answer_pixmap.toImage())
-
-        html_reason = f"""
-        <hr><b>错误原因分析:</b><br>
-        {mistake['mistake_reason'].replace(chr(10), '<br>')}
-        """
-        self.details_area.append(html_reason)
-        
+        html_content = render_html_with_katex(mistake, show_answer=True)
+        self.details_area.setHtml(html_content)
         self.answer_button.setEnabled(False)
 
     def next_mistake(self):

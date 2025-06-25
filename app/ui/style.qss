@@ -27,6 +27,8 @@ QComboBox#filterComboBox, QLineEdit#filterLineEdit {
     background-color: #e6f0ff; /* 浅蓝色背景 */
     border: 1px solid #99bbff;
     border-radius: 6px;
+    padding: 2px 6px;
+    max-height: 24px;
 }
 
 QComboBox:hover, QTextEdit:hover, QLineEdit:hover {
@@ -68,7 +70,7 @@ QLabel#question_preview, QLabel#answer_preview, QLabel#image_preview {
     border: 1px solid #cccccc;
     border-radius: 6px;
     padding: 8px;
-    min-height: 100px;
+    min-height: 20px;
     color: #000000;
 }
 
@@ -83,4 +85,21 @@ QTextBrowser {
 
 QHBoxLayout, QVBoxLayout {
     spacing: 12px;
+}
+QTableView {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    selection-background-color: #3399ff;
+    selection-color: #ffffff;
+    gridline-color: #e0e0e0;
+}
+
+QHeaderView::section {
+    background-color: #e6f0ff; /* 浅蓝色背景 */
+    color: #000000;
+    padding: 6px;
+    border: 1px solid #cccccc;
+    font-weight: 600;
+    font-size: 14px;
 }

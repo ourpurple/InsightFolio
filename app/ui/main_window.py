@@ -1,15 +1,17 @@
 # app/ui/main_window.py
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-                               QPushButton, QTableView, QComboBox, QLineEdit,
-                               QHeaderView, QLabel, QTextBrowser, QMessageBox, QInputDialog, QFileDialog)
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QIcon
+                                 QPushButton, QTableView, QComboBox, QLineEdit,
+                                  QHeaderView, QLabel, QMessageBox, QInputDialog, QFileDialog)
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWebEngineCore import QWebEngineSettings
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 from PySide6.QtCore import Qt
 
 from app.ui.add_edit_dialog import AddEditDialog
 from app.ui.review_dialog import ReviewDialog
 from app.data.database import get_mistakes, delete_mistake, get_mistake_by_id, get_random_mistakes
 from app.logic.mistake_service import MistakeService
-from app.utils.renderer import render_latex_to_pixmap
+from app.utils.renderer import render_html_with_katex
 from app.utils.version import get_version
 import os
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton
@@ -65,8 +67,8 @@ class MainWindow(QMainWindow):
         self.filter_button = QPushButton("筛选")
         
         filter_layout.addWidget(self.grade_filter)
-        filter_layout.addWidget(self.semester_filter)
         filter_layout.addWidget(self.subject_filter)
+        filter_layout.addWidget(self.semester_filter)
         filter_layout.addWidget(self.keyword_filter)
         filter_layout.addWidget(self.filter_button)
         left_layout.addLayout(filter_layout)
@@ -74,7 +76,7 @@ class MainWindow(QMainWindow):
         # 错题表格
         self.table_view = QTableView()
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels(["ID", "年级", "学期", "学科", "录入日期", "错题摘要"])
+        self.model.setHorizontalHeaderLabels(["ID", "年级", "学科", "学期", "录入日期", "错题摘要"])
         self.table_view.setModel(self.model)
         self.table_view.setColumnHidden(0, True) # 隐藏ID列
         header = self.table_view.horizontalHeader()
@@ -83,8 +85,8 @@ class MainWindow(QMainWindow):
 
         # 设置列宽，单位像素，估算字符宽度约8像素
         self.table_view.setColumnWidth(1, 5 * 8)  # 年级
-        self.table_view.setColumnWidth(2, 4 * 8)  # 学期
-        self.table_view.setColumnWidth(3, 4 * 8)  # 学科
+        self.table_view.setColumnWidth(2, 4 * 8)  # 学科
+        self.table_view.setColumnWidth(3, 4 * 8)  # 学期
         self.table_view.setColumnWidth(4, 6 * 8)  # 录入日期
         self.table_view.setSelectionBehavior(QTableView.SelectRows)
         self.table_view.setEditTriggers(QTableView.NoEditTriggers)
@@ -114,8 +116,11 @@ class MainWindow(QMainWindow):
         
         # 右侧详情区域
         right_layout = QVBoxLayout()
-        self.details_area = QTextBrowser()
-        right_layout.addWidget(QLabel("错题详情:"))
+        self.details_area = QWebEngineView()
+        self.details_area.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
+        
+# 删除“错题详情:”的 QLabel
+# right_layout.addWidget(QLabel("错题详情:"))
         right_layout.addWidget(self.details_area)
         
         main_layout.addLayout(left_layout, stretch=2)
@@ -162,7 +167,7 @@ class MainWindow(QMainWindow):
     def display_mistake_details(self, selected, deselected):
         """显示选中错题的详细信息"""
         if not selected.indexes():
-            self.details_area.clear()
+            self.details_area.setHtml("")
             return
             
         row = selected.indexes()[0].row()
@@ -170,52 +175,12 @@ class MainWindow(QMainWindow):
         mistake = get_mistake_by_id(int(mistake_id))
 
         if not mistake:
+            self.details_area.setHtml("")
             return
             
-        # 使用HTML来格式化显示
-        html = f"""
-        <b>学科:</b> {mistake['subject']} &nbsp;&nbsp; <b>年级:</b> {mistake['grade']} ({mistake['semester']})<br>
-        <b>录入日期:</b> {mistake['record_date']}<hr>
-        <b>题目描述:</b><br>
-        {mistake['question_desc'].replace(chr(10), '<br>')}
-        <hr>
-        """
-        self.details_area.setHtml(html)
-        
-        # 渲染题目中的LaTeX
-        question_pixmap = render_latex_to_pixmap(mistake['question_desc'])
-        if not question_pixmap.isNull():
-            self.details_area.append("<br><b>公式渲染:</b>")
-            cursor = self.details_area.textCursor()
-            cursor.insertImage(question_pixmap.toImage())
-            
-        # 显示题目配图
-        if mistake['question_image'] and os.path.exists(mistake['question_image']):
-            self.details_area.append("<br><b>题目配图:</b>")
-            pixmap = QPixmap(mistake['question_image'])
-            # 获取TextBrowser宽度以缩放图片
-            width = self.details_area.width() - 50 # 留出边距
-            cursor = self.details_area.textCursor()
-            cursor.insertImage(pixmap.scaledToWidth(width, Qt.SmoothTransformation).toImage())
-            
-        html_answer = f"""
-        <hr><b>正确答案:</b><br>
-        {mistake['correct_answer'].replace(chr(10), '<br>')}
-        """
-        self.details_area.append(html_answer)
-        
-        # 渲染答案中的LaTeX
-        answer_pixmap = render_latex_to_pixmap(mistake['correct_answer'])
-        if not answer_pixmap.isNull():
-            self.details_area.append("<br><b>答案公式渲染:</b>")
-            cursor = self.details_area.textCursor()
-            cursor.insertImage(answer_pixmap.toImage())
-
-        html_reason = f"""
-        <hr><b>错误原因分析:</b><br>
-        {mistake['mistake_reason'].replace(chr(10), '<br>')}
-        """
-        self.details_area.append(html_reason)
+        mistake_dict = dict(mistake)
+        html_content = render_html_with_katex(mistake_dict, show_answer=True)
+        self.details_area.setHtml(html_content)
 
 
     def add_mistake(self):

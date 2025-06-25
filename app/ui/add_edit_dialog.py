@@ -1,17 +1,32 @@
 # app/ui/add_edit_dialog.py
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QComboBox,
-                               QLineEdit, QTextEdit, QPushButton, QLabel,
+                               QTextEdit, QPushButton, QLabel,
                                QFileDialog, QHBoxLayout, QMessageBox)
 from PySide6.QtGui import QPixmap
+from PySide6.QtCore import QThread, Signal
 from datetime import datetime
 import uuid
 import os
 
-from app.utils.renderer import render_latex_to_pixmap
-from app.data.database import add_mistake, update_mistake, get_mistake_by_id
+from app.data.database import add_mistake, get_mistake_by_id, update_mistake
 
 # 定义资源目录
 ASSETS_DIR = "assets/images"
+
+class ImageCopyThread(QThread):
+    copy_finished = Signal(str)
+
+    def __init__(self, src_path, dest_path):
+        super().__init__()
+        self.src_path = src_path
+        self.dest_path = dest_path
+
+    def run(self):
+        # Ensure the destination directory exists
+        os.makedirs(os.path.dirname(self.dest_path), exist_ok=True)
+        with open(self.src_path, 'rb') as f_in, open(self.dest_path, 'wb') as f_out:
+            f_out.write(f_in.read())
+        self.copy_finished.emit(self.dest_path)
 
 class AddEditDialog(QDialog):
     def __init__(self, mistake_id=None, parent=None):
@@ -24,123 +39,103 @@ class AddEditDialog(QDialog):
         else:
             self.setWindowTitle("新增错题")
         
-        self.setMinimumSize(800, 700)
-        
+        self.setMinimumSize(600, 500)
+
         self._init_ui()
         self._connect_signals()
-        
+
         if self.mistake_id:
-            self._load_mistake_data()
+            self._load_data()
 
     def _init_ui(self):
-        """初始化UI界面"""
         layout = QVBoxLayout(self)
+
         form_layout = QFormLayout()
 
-        # 分类
+        # 分类选择
         self.grade_combo = QComboBox()
-        self.grade_combo.setObjectName("grade_combo")
-        self.grade_combo.addItems([f"{g}年级" for g in range(1, 13)])
+        self.grade_combo.addItems(["7年级", "8年级", "9年级"])
         self.semester_combo = QComboBox()
-        self.semester_combo.setObjectName("semester_combo")
         self.semester_combo.addItems(["上册", "下册"])
         self.subject_combo = QComboBox()
-        self.subject_combo.setObjectName("subject_combo")
-        self.subject_combo.addItems(["数学", "物理", "化学", "生物", "语文", "英语"])
-        
+        self.subject_combo.addItems(["语文", "数学", "英语", "物理", "化学", "地理", "生物", "道法", "历史"])
+
         category_layout = QHBoxLayout()
         category_layout.addWidget(self.grade_combo)
         category_layout.addWidget(self.semester_combo)
         category_layout.addWidget(self.subject_combo)
         form_layout.addRow("分类:", category_layout)
 
-        # 题目描述
+        # 题目
         self.question_edit = QTextEdit()
-        self.question_edit.setObjectName("question_edit")
-        self.question_preview = QLabel("公式预览")
-        self.question_preview.setObjectName("question_preview")
-        self.question_preview.setMinimumHeight(100)
-        form_layout.addRow("题目描述:", self.question_edit)
-        form_layout.addRow("公式预览:", self.question_preview)
+        form_layout.addRow("题目:", self.question_edit)
 
-        # 题目配图
+        # 正确答案
+        self.answer_edit = QTextEdit()
+        form_layout.addRow("正确答案:", self.answer_edit)
+
+        # 错误原因
+        self.reason_edit = QTextEdit()
+        form_layout.addRow("错误原因:", self.reason_edit)
+
+        # 图片上传
         self.upload_button = QPushButton("上传图片")
-        self.upload_button.setObjectName("upload_button")
-        self.image_preview = QLabel("图片预览")
-        self.image_preview.setObjectName("image_preview")
-        self.image_preview.setMinimumSize(200, 100)
+        self.image_preview = QLabel("无图片")
+        self.image_preview.setFixedSize(200, 100)
         image_layout = QHBoxLayout()
         image_layout.addWidget(self.upload_button)
         image_layout.addWidget(self.image_preview)
         form_layout.addRow("题目配图:", image_layout)
 
-        # 正确答案
-        self.answer_edit = QTextEdit()
-        self.answer_edit.setObjectName("answer_edit")
-        self.answer_preview = QLabel("答案公式预览")
-        self.answer_preview.setObjectName("answer_preview")
-        self.answer_preview.setMinimumHeight(100)
-        form_layout.addRow("正确答案:", self.answer_edit)
-        form_layout.addRow("答案预览:", self.answer_preview)
-
-        # 错误原因
-        self.reason_edit = QTextEdit()
-        self.reason_edit.setObjectName("reason_edit")
-        form_layout.addRow("错误原因:", self.reason_edit)
-
         layout.addLayout(form_layout)
 
         # 按钮
-        self.save_button = QPushButton("保存")
-        self.save_button.setObjectName("save_button")
-        self.cancel_button = QPushButton("取消")
-        self.cancel_button.setObjectName("cancel_button")
         button_layout = QHBoxLayout()
-        button_layout.addStretch()
+        self.save_button = QPushButton("保存")
+        self.cancel_button = QPushButton("取消")
         button_layout.addWidget(self.save_button)
         button_layout.addWidget(self.cancel_button)
         layout.addLayout(button_layout)
 
     def _connect_signals(self):
-        """连接信号与槽"""
-        self.question_edit.textChanged.connect(self._update_question_preview)
-        self.answer_edit.textChanged.connect(self._update_answer_preview)
         self.upload_button.clicked.connect(self._upload_image)
         self.save_button.clicked.connect(self.accept)
         self.cancel_button.clicked.connect(self.reject)
-    
-    def _update_question_preview(self):
-        """更新题目公式预览"""
-        latex_str = self.question_edit.toPlainText()
-        pixmap = render_latex_to_pixmap(latex_str)
-        self.question_preview.setPixmap(pixmap)
 
-    def _update_answer_preview(self):
-        """更新答案公式预览"""
-        latex_str = self.answer_edit.toPlainText()
-        pixmap = render_latex_to_pixmap(latex_str)
-        self.answer_preview.setPixmap(pixmap)
+    def _load_data(self):
+        mistake = get_mistake_by_id(self.mistake_id)
+        if mistake:
+            self.grade_combo.setCurrentText(mistake['grade'])
+            self.semester_combo.setCurrentText(mistake['semester'])
+            self.subject_combo.setCurrentText(mistake['subject'])
+            self.question_edit.setPlainText(mistake['question_desc'])
+            self.answer_edit.setPlainText(mistake['correct_answer'])
+            self.reason_edit.setPlainText(mistake['mistake_reason'])
+            self.image_path = mistake['question_image']
+            if self.image_path and os.path.exists(self.image_path):
+                pixmap = QPixmap(self.image_path)
+                self.image_preview.setPixmap(pixmap.scaled(self.image_preview.size(), aspectRatioMode=1))
 
     def _upload_image(self):
-        """上传图片"""
         if not os.path.exists(ASSETS_DIR):
             os.makedirs(ASSETS_DIR)
-            
+
         file_path, _ = QFileDialog.getOpenFileName(self, "选择图片", "", "图片文件 (*.png *.jpg *.jpeg *.bmp)")
         if file_path:
             ext = os.path.splitext(file_path)
             new_filename = f"{uuid.uuid4()}{ext}"
-            self.image_path = os.path.join(ASSETS_DIR, new_filename).replace("\\", "/")
-            
-            # 复制文件
-            with open(file_path, 'rb') as f_in, open(self.image_path, 'wb') as f_out:
-                f_out.write(f_in.read())
-            
-            pixmap = QPixmap(self.image_path)
-            self.image_preview.setPixmap(pixmap.scaledToWidth(200))
+            dest_path = os.path.join(ASSETS_DIR, new_filename).replace("\\", "/")
+
+            def on_copy_finished(path):
+                self.image_path = path
+                pixmap = QPixmap(self.image_path)
+                self.image_preview.setPixmap(pixmap.scaled(self.image_preview.size(), aspectRatioMode=1))
+
+            self.copy_thread = ImageCopyThread(file_path, dest_path)
+            self.copy_thread.copy_finished.connect(on_copy_finished)
+            self.copy_thread.start()
 
     def get_data(self):
-        """获取对话框中的数据"""
         return {
             "grade": self.grade_combo.currentText(),
             "semester": self.semester_combo.currentText(),
@@ -152,24 +147,7 @@ class AddEditDialog(QDialog):
             "mistake_reason": self.reason_edit.toPlainText()
         }
 
-    def _load_mistake_data(self):
-        """加载错题数据到UI"""
-        mistake = get_mistake_by_id(self.mistake_id)
-        if mistake:
-            self.grade_combo.setCurrentText(mistake['grade'])
-            self.semester_combo.setCurrentText(mistake['semester'])
-            self.subject_combo.setCurrentText(mistake['subject'])
-            self.question_edit.setPlainText(mistake['question_desc'])
-            self.answer_edit.setPlainText(mistake['correct_answer'])
-            self.reason_edit.setPlainText(mistake['mistake_reason'])
-            
-            self.image_path = mistake['question_image']
-            if self.image_path and os.path.exists(self.image_path):
-                pixmap = QPixmap(self.image_path)
-                self.image_preview.setPixmap(pixmap.scaledToWidth(200))
-
     def accept(self):
-        """保存数据"""
         data = self.get_data()
         try:
             if self.mistake_id:

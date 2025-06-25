@@ -1,63 +1,128 @@
 # app/utils/renderer.py
-import matplotlib.pyplot as plt
-from PySide6.QtGui import QPixmap
-import io
+import os
 
-# 配置matplotlib以支持中文和公式
-plt.rcParams['font.sans-serif'] = ['SimHei']  # 指定默认字体
-plt.rcParams['axes.unicode_minus'] = False  # 解决保存图像是负号'-'显示为方块的问题
-plt.rcParams['mathtext.fontset'] = 'stix' # stix-like fonts
-
-def render_latex_to_pixmap(latex_str):
+def render_html_with_katex(mistake_data, show_answer=True):
     """
-    将 LaTeX 字符串渲染为 QPixmap 对象。
-    如果渲染失败，返回一个空的 QPixmap。
+    将错题数据渲染成包含KaTeX的HTML页面。
+    
+    :param mistake_data: 包含错题信息的字典。
+    :param show_answer: 是否显示答案和解析。
+    :return: 渲染好的HTML字符串。
     """
-    if not latex_str.strip():
-        return QPixmap()
+    
+    # 获取 assets/katex 目录的绝对路径
+    # The path is constructed relative to this file's location (app/utils/renderer.py)
+    assets_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'assets', 'katex')).replace('\\', '/')
 
-    try:
-        fig, ax = plt.subplots(figsize=(8, 1), dpi=150)
-        # 使用 $...$ 包裹以确保渲染为数学公式
-        ax.text(0.5, 0.5, f"${latex_str}$", size=15, va='center', ha='center')
-        ax.axis('off')
+    # 替换换行符为<br>，并对LaTeX内容进行转义，以便在JavaScript中正确处理
+    question_desc = mistake_data['question_desc'].replace('\n', '<br>')
+    correct_answer = mistake_data['correct_answer'].replace('\n', '<br>')
+    mistake_reason = mistake_data['mistake_reason'].replace('\n', '<br>')
+
+    # 构建答案和解析部分
+    answer_html = ""
+    if show_answer:
+        answer_html = f"""
+            <hr>
+            <h3>正确答案:</h3>
+            <div id="answer" class="content-box">{correct_answer}</div>
+            
+            <hr>
+            <h3>错误原因分析:</h3>
+            <div id="reason" class="content-box">{mistake_reason}</div>
+        """
+
+    # 构建题目图片部分
+    image_html = ""
+    if mistake_data.get('question_image') and os.path.exists(mistake_data['question_image']):
+        # 将本地图片路径转换为 file:/// URI
+        image_path = os.path.abspath(mistake_data['question_image']).replace('\\', '/')
+        image_html = f"""
+            <hr>
+            <h3>题目配图:</h3>
+            <img src="file:///{image_path}" alt="题目图片" style="max-width: 100%; height: auto;">
+        """
+
+    html_template = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>错题详情</title>
+        <link rel="stylesheet" href="file:///{assets_path}/katex.min.css">
+        <script defer src="file:///{assets_path}/katex.min.js"></script>
+        <script defer src="file:///{assets_path}/auto-render.min.js"></script>
+        <style>
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+                font-size: 16px;
+                line-height: 1.6;
+                margin: 10px;
+                background-color: #f8f9fa;
+                color: #212529;
+            }}
+            .container {{
+                max-width: 700px;
+                margin: 0 auto;
+                background-color: #ffffff;
+                padding: 15px;
+                border-radius: 6px;
+                box-shadow: 0 1px 6px rgba(0,0,0,0.03);
+            }}
+            h2, h3 {{
+                color: #0056b3;
+                border-bottom: 2px solid #e9ecef;
+                padding-bottom: 5px;
+                margin-top: 15px;
+            }}
+            .content-box {{
+                padding: 10px;
+                background-color: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 4px;
+                margin-top: 8px;
+                word-wrap: break-word; /* 确保长内容能换行 */
+            }}
+            .meta-info {{
+                font-size: 13px;
+                color: #6c757d;
+                margin-bottom: 12px;
+            }}
+            img {{
+                max-width: 100%;
+                height: auto;
+                border-radius: 4px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="meta-info">
+                <b>学科:</b> {mistake_data['subject']} &nbsp;&nbsp;
+                <b>年级:</b> {mistake_data['grade']} ({mistake_data['semester']}) &nbsp;&nbsp;
+                <b>录入日期:</b> {mistake_data['record_date']}
+            </div>
+            
+            <h3>题目:</h3>
+            <div id="question" class="content-box">{question_desc}</div>
+            
+            {image_html}
+            {answer_html}
+        </div>
         
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.1)
-        plt.close(fig)
-        
-        pixmap = QPixmap()
-        pixmap.loadFromData(buf.getvalue())
-        return pixmap
-    except Exception as e:
-        print(f"LaTeX渲染失败: {e}")
-        # 创建一个包含错误信息的图像
-        fig, ax = plt.subplots(figsize=(8, 1), dpi=150)
-        ax.text(0.5, 0.5, "公式渲染失败", size=15, va='center', ha='center', color='red')
-        ax.axis('off')
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.1)
-        plt.close(fig)
-        pixmap = QPixmap()
-        pixmap.loadFromData(buf.getvalue())
-        return pixmap
-
-
-def render_latex_to_file(latex_str, filepath):
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {{
+                renderMathInElement(document.body, {{
+                    delimiters: [
+                        {{left: "$$", right: "$$", display: true}},
+                        {{left: "$", right: "$", display: false}},
+                        {{left: "\\\\[", right: "\\\\]", display: true}},
+                        {{left: "\\\\(", right: "\\\\)", display: false}}
+                    ]
+                }});
+            }});
+        </script>
+    </body>
+    </html>
     """
-    将 LaTeX 字符串渲染为图片文件。
-    """
-    if not latex_str.strip():
-        return False
-        
-    try:
-        fig, ax = plt.subplots(figsize=(8, 1), dpi=300)
-        ax.text(0.5, 0.5, f"${latex_str}$", size=15, va='center', ha='center')
-        ax.axis('off')
-        
-        fig.savefig(filepath, format='png', bbox_inches='tight', pad_inches=0.1)
-        plt.close(fig)
-        return True
-    except Exception as e:
-        print(f"LaTeX渲染到文件失败: {e}")
-        return False
+    return html_template
