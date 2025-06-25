@@ -10,14 +10,29 @@ def render_html_with_katex(mistake_data, show_answer=True):
     :return: 渲染好的HTML字符串。
     """
     
-    # 获取 assets/katex 目录的绝对路径
-    # The path is constructed relative to this file's location (app/utils/renderer.py)
-    assets_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'assets', 'katex')).replace('\\', '/')
+    # --- In-memory KaTeX Assets ---
+    # To avoid issues with local file access (file:/// protocol),
+    # we embed the content of KaTeX's CSS and JS files directly into the HTML.
+    
+    # Get the absolute path to the assets directory
+    assets_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'assets', 'katex'))
 
-    # 替换换行符为<br>，并对LaTeX内容进行转义，以便在JavaScript中正确处理
-    question_desc = mistake_data['question_desc'].replace('\n', '<br>')
-    correct_answer = mistake_data['correct_answer'].replace('\n', '<br>')
-    mistake_reason = mistake_data['mistake_reason'].replace('\n', '<br>')
+    # Read the content of the asset files
+    try:
+        with open(os.path.join(assets_dir, 'katex.min.css'), 'r', encoding='utf-8') as f:
+            katex_css = f.read()
+        with open(os.path.join(assets_dir, 'katex.min.js'), 'r', encoding='utf-8') as f:
+            katex_js = f.read()
+        with open(os.path.join(assets_dir, 'auto-render.min.js'), 'r', encoding='utf-8') as f:
+            auto_render_js = f.read()
+    except FileNotFoundError as e:
+        # Handle cases where asset files might be missing
+        return f"Error: KaTeX asset file not found. {e}"
+
+    # Directly use the original text; frontend CSS and JS will handle rendering
+    question_desc = mistake_data['question_desc']
+    correct_answer = mistake_data['correct_answer']
+    mistake_reason = mistake_data['mistake_reason']
 
     # 构建答案和解析部分
     answer_html = ""
@@ -49,9 +64,9 @@ def render_html_with_katex(mistake_data, show_answer=True):
     <head>
         <meta charset="UTF-8">
         <title>错题详情</title>
-        <link rel="stylesheet" href="file:///{assets_path}/katex.min.css">
-        <script defer src="file:///{assets_path}/katex.min.js"></script>
-        <script defer src="file:///{assets_path}/auto-render.min.js"></script>
+        <style>{katex_css}</style>
+        <script>{katex_js}</script>
+        <script>{auto_render_js}</script>
         <style>
             body {{
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -82,6 +97,7 @@ def render_html_with_katex(mistake_data, show_answer=True):
                 border-radius: 4px;
                 margin-top: 8px;
                 word-wrap: break-word; /* 确保长内容能换行 */
+                white-space: pre-wrap; /* 保留换行符和空格，以便KaTeX正确处理块公式 */
             }}
             .meta-info {{
                 font-size: 13px;
@@ -111,14 +127,17 @@ def render_html_with_katex(mistake_data, show_answer=True):
         </div>
         
         <script>
-            document.addEventListener("DOMContentLoaded", function() {{
+            document.addEventListener('DOMContentLoaded', function() {{
                 renderMathInElement(document.body, {{
                     delimiters: [
                         {{left: "$$", right: "$$", display: true}},
                         {{left: "$", right: "$", display: false}},
-                        {{left: "\\\\[", right: "\\\\]", display: true}},
-                        {{left: "\\\\(", right: "\\\\)", display: false}}
-                    ]
+                        {{left: "\\[", right: "\\]", display: true}},
+                        {{left: "\\(", right: "\\)", display: false}}
+                    ],
+                    // Be less strict about what is considered valid math,
+                    // to allow for mixed text and math, and avoid warnings.
+                    strict: false
                 }});
             }});
         </script>
