@@ -4,12 +4,12 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                                   QHeaderView, QLabel, QMessageBox, QInputDialog, QFileDialog)
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineSettings
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon, QPixmap
 from PySide6.QtCore import Qt
 
 from app.ui.add_edit_dialog import AddEditDialog
 from app.ui.review_dialog import ReviewDialog
-from app.data.database import get_mistakes, delete_mistake, get_mistake_by_id, get_random_mistakes
+from app.data.database import get_mistakes, get_mistake_by_id, get_random_mistakes
 from app.logic.mistake_service import MistakeService
 from app.utils.renderer import render_html_with_katex
 from app.utils.version import get_version
@@ -60,7 +60,7 @@ class MainWindow(QMainWindow):
         self.subject_filter.clear()
         self.subject_filter.addItem("所有学科")
         self.subject_filter.addItems(["语文", "数学", "英语", "物理", "化学", "地理", "生物", "道法", "历史"])
-        self.subject_filter.setCurrentIndex(1)  # 默认语文
+        self.subject_filter.setCurrentIndex(0)  # 默认语文
         self.keyword_filter = QLineEdit()
         self.keyword_filter.setObjectName("filterLineEdit")
         self.keyword_filter.setPlaceholderText("关键词搜索...")
@@ -221,7 +221,7 @@ class MainWindow(QMainWindow):
             try:
                 self.mistake_service.delete_mistake_with_assets(mistake_id)
                 self.load_mistakes()
-                self.details_area.clear()
+                self.details_area.setHtml("")
                 QMessageBox.information(self, "成功", "错题已删除。")
             except Exception as e:
                 QMessageBox.critical(self, "错误", f"删除失败: {e}")

@@ -58,7 +58,8 @@ class MistakeService:
             html_content = render_html_with_katex(mistake, show_answer=True)
             # 简单地提取body内容
             if '<body>' in html_content and '</body>' in html_content:
-                body_content = html_content.split('<body>').split('</body>')
+                body_part = html_content.split('<body>', 1)
+                body_content = body_part.split('</body>', 1)
                 full_html += f'<div class="mistake-container">{body_content}</div>'
 
         full_html += """

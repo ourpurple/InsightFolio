@@ -73,6 +73,8 @@ def get_mistakes(filters=None):
                 params.append(f"%{value}%")
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
+    
+    query += " ORDER BY id DESC"
             
     cursor.execute(query, params)
     mistakes = cursor.fetchall()
