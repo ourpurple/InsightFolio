@@ -2,7 +2,7 @@
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                                QPushButton, QTableView, QComboBox, QLineEdit,
                                QHeaderView, QLabel, QTextBrowser, QMessageBox, QInputDialog, QFileDialog)
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QIcon
 from PySide6.QtCore import Qt
 
 from app.ui.add_edit_dialog import AddEditDialog
@@ -18,6 +18,10 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"启思录 (Insight Folio) {get_version()}")
+        # 设置应用图标
+        icon_path = os.path.join(os.path.dirname(__file__), "app.ico")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
         self.setGeometry(100, 100, 1600, 900)
         self.mistake_service = MistakeService()
         self._init_ui()
@@ -304,35 +308,54 @@ class AboutDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("关于 启思录 (Insight Folio)")
-        self.setFixedSize(400, 250)
-        layout = QVBoxLayout(self)
+        self.setFixedSize(520, 320)  # 调整窗口大小以适应新布局
 
-        title = QLabel("启思录 (Insight Folio) ")
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("font-size: 18pt; font-weight: bold;")
+        # 主布局
+        main_layout = QHBoxLayout(self)
 
-        version = QLabel(f"版本：{get_version()}")
-        version.setAlignment(Qt.AlignCenter)
-        author = QLabel("作者：WanderlnDoor")
-        author.setAlignment(Qt.AlignCenter)
-        contact = QLabel("联系方式：76757488@qq.c0m")
-        contact.setAlignment(Qt.AlignCenter)
-        source = QLabel("源代码：https://github.com/ourpurple/InsightFolio")
-        source.setAlignment(Qt.AlignCenter)
-        base = QLabel("基于Python和PySide6构建。")
-        base.setAlignment(Qt.AlignCenter)
+        # 左侧：应用图标
+        icon_label = QLabel()
+        # 加载应用图标，优先使用ico
+        icon_path = os.path.join(os.path.dirname(__file__), "about.png")
 
-        layout.addWidget(title)
-        layout.addSpacing(10)
-        layout.addWidget(version)
-        layout.addWidget(author)
-        layout.addWidget(contact)
-        layout.addWidget(source)
-        layout.addWidget(base)
-        layout.addStretch()
+        if os.path.exists(icon_path):
+            pixmap = QPixmap(icon_path)
+            icon_label.setPixmap(pixmap.scaled(128, 128, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        icon_label.setAlignment(Qt.AlignCenter)
 
-        close_button = QPushButton("关闭")
-        close_button.setFixedWidth(100)
-        close_button.clicked.connect(self.accept)
-        close_button.setStyleSheet("font-size: 12pt; padding: 6px;")
-        layout.addWidget(close_button, alignment=Qt.AlignCenter)
+        # 右侧：文本信息
+        info_layout = QVBoxLayout()
+        
+        title = QLabel("启思录 (Insight Folio)")
+        title.setStyleSheet("font-size: 24pt; font-weight: bold;")
+
+        version = QLabel(f"版本 {get_version()}")
+        version.setStyleSheet("font-size: 12pt;")
+
+        description = QLabel("一款专为学生设计的错题管理软件。")
+        description.setStyleSheet("font-size: 11pt;")
+        
+        author = QLabel("作者: Wanderln")
+        author.setStyleSheet("font-size: 11pt;")
+
+        github_link = QLabel("<a href='https://github.com/ourpurple/InsightFolio'>GitHub Repository</a>")
+        github_link.setOpenExternalLinks(True)
+        github_link.setStyleSheet("font-size: 11pt;")
+
+        info_layout.addWidget(title)
+        info_layout.addWidget(version)
+        info_layout.addSpacing(15)
+        info_layout.addWidget(description)
+        info_layout.addWidget(author)
+        info_layout.addWidget(github_link)
+        info_layout.addStretch()
+
+        # 组合左右布局
+        main_layout.addWidget(icon_label, 1)
+        main_layout.addLayout(info_layout, 2)
+
+        # 关闭按钮（可选，因为对话框通常有标题栏关闭按钮）
+        # 如果需要明确的关闭按钮，可以取消下面的注释
+        # close_button = QPushButton("关闭")
+        # close_button.clicked.connect(self.accept)
+        # info_layout.addWidget(close_button, alignment=Qt.AlignRight)
