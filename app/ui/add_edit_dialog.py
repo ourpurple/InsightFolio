@@ -39,10 +39,13 @@ class AddEditDialog(QDialog):
 
         # 分类
         self.grade_combo = QComboBox()
+        self.grade_combo.setObjectName("grade_combo")
         self.grade_combo.addItems([f"{g}年级" for g in range(1, 13)])
         self.semester_combo = QComboBox()
+        self.semester_combo.setObjectName("semester_combo")
         self.semester_combo.addItems(["上册", "下册"])
         self.subject_combo = QComboBox()
+        self.subject_combo.setObjectName("subject_combo")
         self.subject_combo.addItems(["数学", "物理", "化学", "生物", "语文", "英语"])
         
         category_layout = QHBoxLayout()
@@ -53,14 +56,18 @@ class AddEditDialog(QDialog):
 
         # 题目描述
         self.question_edit = QTextEdit()
+        self.question_edit.setObjectName("question_edit")
         self.question_preview = QLabel("公式预览")
+        self.question_preview.setObjectName("question_preview")
         self.question_preview.setMinimumHeight(100)
         form_layout.addRow("题目描述:", self.question_edit)
         form_layout.addRow("公式预览:", self.question_preview)
 
         # 题目配图
         self.upload_button = QPushButton("上传图片")
+        self.upload_button.setObjectName("upload_button")
         self.image_preview = QLabel("图片预览")
+        self.image_preview.setObjectName("image_preview")
         self.image_preview.setMinimumSize(200, 100)
         image_layout = QHBoxLayout()
         image_layout.addWidget(self.upload_button)
@@ -69,20 +76,25 @@ class AddEditDialog(QDialog):
 
         # 正确答案
         self.answer_edit = QTextEdit()
+        self.answer_edit.setObjectName("answer_edit")
         self.answer_preview = QLabel("答案公式预览")
+        self.answer_preview.setObjectName("answer_preview")
         self.answer_preview.setMinimumHeight(100)
         form_layout.addRow("正确答案:", self.answer_edit)
         form_layout.addRow("答案预览:", self.answer_preview)
 
         # 错误原因
         self.reason_edit = QTextEdit()
+        self.reason_edit.setObjectName("reason_edit")
         form_layout.addRow("错误原因:", self.reason_edit)
 
         layout.addLayout(form_layout)
 
         # 按钮
         self.save_button = QPushButton("保存")
+        self.save_button.setObjectName("save_button")
         self.cancel_button = QPushButton("取消")
+        self.cancel_button.setObjectName("cancel_button")
         button_layout = QHBoxLayout()
         button_layout.addStretch()
         button_layout.addWidget(self.save_button)

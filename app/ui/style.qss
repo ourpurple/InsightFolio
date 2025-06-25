@@ -1,0 +1,86 @@
+/* style.qss - 现代简约白色主题 */
+
+QDialog {
+    background-color: #ffffff;
+    font-family: "霞鹜文楷 GB 屏幕阅读版", serif;
+    font-size: 14px;
+    color: #000000;
+}
+
+QLabel {
+    color: #000000;
+    font-weight: 600;
+}
+
+QComboBox, QTextEdit, QLineEdit {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    padding: 6px;
+    selection-background-color: #3399ff;
+    selection-color: #ffffff;
+    font-size: 14px;
+    color: #000000;
+}
+
+QComboBox#filterComboBox, QLineEdit#filterLineEdit {
+    background-color: #e6f0ff; /* 浅蓝色背景 */
+    border: 1px solid #99bbff;
+    border-radius: 6px;
+}
+
+QComboBox:hover, QTextEdit:hover, QLineEdit:hover {
+    border-color: #3399ff;
+}
+
+QComboBox:focus, QTextEdit:focus, QLineEdit:focus {
+    border-color: #007acc;
+    outline: none;
+}
+
+QPushButton, QPushButton#actionButton {
+    background-color: #3399ff;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 18px;
+    font-weight: 600;
+    min-width: 80px;
+    transition: background-color 0.3s ease;
+    font-size: 14px;
+}
+
+QPushButton:hover {
+    background-color: #007acc;
+}
+
+QPushButton:pressed {
+    background-color: #005a9e;
+}
+
+QPushButton:disabled {
+    background-color: #cccccc;
+    color: #666666;
+}
+
+QLabel#question_preview, QLabel#answer_preview, QLabel#image_preview {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    padding: 8px;
+    min-height: 100px;
+    color: #000000;
+}
+
+QTextBrowser {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    padding: 8px;
+    font-family: "霞鹜文楷 GB 屏幕阅读版", serif;
+    color: #000000;
+}
+
+QHBoxLayout, QVBoxLayout {
+    spacing: 12px;
+}

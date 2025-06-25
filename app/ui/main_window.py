@@ -10,13 +10,14 @@ from app.ui.review_dialog import ReviewDialog
 from app.data.database import get_mistakes, delete_mistake, get_mistake_by_id, get_random_mistakes
 from app.logic.mistake_service import MistakeService
 from app.utils.renderer import render_latex_to_pixmap
+from app.utils.version import get_version
 import os
-
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("启思录 (Insight Folio)")
+        self.setWindowTitle(f"启思录 (Insight Folio) {get_version()}")
         self.setGeometry(100, 100, 1600, 900)
         self.mistake_service = MistakeService()
         self._init_ui()
@@ -35,16 +36,32 @@ class MainWindow(QMainWindow):
         # 筛选器
         filter_layout = QHBoxLayout()
         self.grade_filter = QComboBox()
+        self.grade_filter.setObjectName("filterComboBox")
+        self.grade_filter.clear()
         self.grade_filter.addItem("所有年级")
-        self.grade_filter.addItems([f"{g}年级" for g in range(1, 13)])
+        self.grade_filter.addItems(["7年级", "8年级", "9年级"])
+        self.grade_filter.setCurrentIndex(1)  # 默认7年级
+
+        self.semester_filter = QComboBox()
+        self.semester_filter.setObjectName("filterComboBox")
+        self.semester_filter.clear()
+        self.semester_filter.addItem("所有学期")
+        self.semester_filter.addItems(["上册", "下册"])
+        self.semester_filter.setCurrentIndex(0)  # 默认所有学期
+
         self.subject_filter = QComboBox()
+        self.subject_filter.setObjectName("filterComboBox")
+        self.subject_filter.clear()
         self.subject_filter.addItem("所有学科")
-        self.subject_filter.addItems(["数学", "物理", "化学", "生物", "语文", "英语"])
+        self.subject_filter.addItems(["语文", "数学", "英语", "物理", "化学", "地理", "生物", "道法", "历史"])
+        self.subject_filter.setCurrentIndex(1)  # 默认语文
         self.keyword_filter = QLineEdit()
+        self.keyword_filter.setObjectName("filterLineEdit")
         self.keyword_filter.setPlaceholderText("关键词搜索...")
         self.filter_button = QPushButton("筛选")
         
         filter_layout.addWidget(self.grade_filter)
+        filter_layout.addWidget(self.semester_filter)
         filter_layout.addWidget(self.subject_filter)
         filter_layout.addWidget(self.keyword_filter)
         filter_layout.addWidget(self.filter_button)
@@ -53,10 +70,18 @@ class MainWindow(QMainWindow):
         # 错题表格
         self.table_view = QTableView()
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels(["ID", "学科", "年级", "学期", "录入日期"])
+        self.model.setHorizontalHeaderLabels(["ID", "年级", "学期", "学科", "录入日期", "错题摘要"])
         self.table_view.setModel(self.model)
         self.table_view.setColumnHidden(0, True) # 隐藏ID列
-        self.table_view.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        header = self.table_view.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(5, QHeaderView.Stretch) # 让摘要列自动拉伸
+
+        # 设置列宽，单位像素，估算字符宽度约8像素
+        self.table_view.setColumnWidth(1, 5 * 8)  # 年级
+        self.table_view.setColumnWidth(2, 4 * 8)  # 学期
+        self.table_view.setColumnWidth(3, 4 * 8)  # 学科
+        self.table_view.setColumnWidth(4, 6 * 8)  # 录入日期
         self.table_view.setSelectionBehavior(QTableView.SelectRows)
         self.table_view.setEditTriggers(QTableView.NoEditTriggers)
         left_layout.addWidget(self.table_view)
@@ -64,15 +89,23 @@ class MainWindow(QMainWindow):
         # 操作按钮
         button_layout = QHBoxLayout()
         self.add_button = QPushButton("新增")
+        self.add_button.setObjectName("actionButton")
         self.edit_button = QPushButton("编辑")
+        self.edit_button.setObjectName("actionButton")
         self.delete_button = QPushButton("删除")
+        self.delete_button.setObjectName("actionButton")
         self.review_button = QPushButton("开始复习")
+        self.review_button.setObjectName("actionButton")
         self.export_button = QPushButton("导出PDF")
+        self.export_button.setObjectName("actionButton")
         button_layout.addWidget(self.add_button)
         button_layout.addWidget(self.edit_button)
         button_layout.addWidget(self.delete_button)
         button_layout.addWidget(self.review_button)
         button_layout.addWidget(self.export_button)
+        self.about_button = QPushButton("关于")
+        self.about_button.setObjectName("actionButton")
+        button_layout.addWidget(self.about_button)
         left_layout.addLayout(button_layout)
         
         # 右侧详情区域
@@ -93,6 +126,11 @@ class MainWindow(QMainWindow):
         self.export_button.clicked.connect(self.export_to_pdf)
         self.filter_button.clicked.connect(self.load_mistakes)
         self.table_view.selectionModel().selectionChanged.connect(self.display_mistake_details)
+        self.about_button.clicked.connect(self.show_about_dialog)
+
+    def show_about_dialog(self):
+        dialog = AboutDialog(self)
+        dialog.exec()
 
     def load_mistakes(self):
         """加载错题到表格"""
@@ -105,12 +143,15 @@ class MainWindow(QMainWindow):
         mistakes = get_mistakes(filters)
         self.model.removeRows(0, self.model.rowCount())
         for mistake in mistakes:
+            # 生成摘要
+            summary = mistake['question_desc'][:50] + '...' if len(mistake['question_desc']) > 50 else mistake['question_desc']
             row = [
                 QStandardItem(str(mistake['id'])),
-                QStandardItem(mistake['subject']),
                 QStandardItem(mistake['grade']),
                 QStandardItem(mistake['semester']),
+                QStandardItem(mistake['subject']),
                 QStandardItem(mistake['record_date']),
+                QStandardItem(summary.replace('\n', ' ')), # 替换换行符，避免显示问题
             ]
             self.model.appendRow(row)
 
@@ -120,7 +161,7 @@ class MainWindow(QMainWindow):
             self.details_area.clear()
             return
             
-        row = selected.indexes().row()
+        row = selected.indexes()[0].row()
         mistake_id = self.model.item(row, 0).text()
         mistake = get_mistake_by_id(int(mistake_id))
 
@@ -186,7 +227,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "警告", "请先选择要编辑的错题。")
             return
         
-        row = selected_indexes.row()
+        row = selected_indexes[0].row()
         mistake_id = int(self.model.item(row, 0).text())
         
         dialog = AddEditDialog(mistake_id=mistake_id, parent=self)
@@ -206,7 +247,7 @@ class MainWindow(QMainWindow):
 
         if reply == QMessageBox.Yes:
             # Since selection mode is SelectRows, we can get the row from the first index.
-            row = selected_indexes.row()
+            row = selected_indexes[0].row()
             mistake_id = int(self.model.item(row, 0).text())
             try:
                 self.mistake_service.delete_mistake_with_assets(mistake_id)
@@ -220,6 +261,7 @@ class MainWindow(QMainWindow):
         """开始随机复习"""
         filters = {
             "grade": self.grade_filter.currentText() if self.grade_filter.currentIndex() > 0 else "",
+            "semester": self.semester_filter.currentText() if self.semester_filter.currentIndex() > 0 else "",
             "subject": self.subject_filter.currentText() if self.subject_filter.currentIndex() > 0 else "",
         }
         # Keyword filter for review is not in the spec, but can be added if needed.
@@ -256,3 +298,41 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(self, "成功", f"PDF文件已成功导出到:\n{filepath}")
             except Exception as e:
                 QMessageBox.critical(self, "错误", f"导出PDF失败: {e}")
+
+
+class AboutDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("关于 启思录 (Insight Folio)")
+        self.setFixedSize(400, 250)
+        layout = QVBoxLayout(self)
+
+        title = QLabel("启思录 (Insight Folio) ")
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("font-size: 18pt; font-weight: bold;")
+
+        version = QLabel(f"版本：{get_version()}")
+        version.setAlignment(Qt.AlignCenter)
+        author = QLabel("作者：WanderlnDoor")
+        author.setAlignment(Qt.AlignCenter)
+        contact = QLabel("联系方式：76757488@qq.c0m")
+        contact.setAlignment(Qt.AlignCenter)
+        source = QLabel("源代码：https://github.com/ourpurple/InsightFolio")
+        source.setAlignment(Qt.AlignCenter)
+        base = QLabel("基于Python和PySide6构建。")
+        base.setAlignment(Qt.AlignCenter)
+
+        layout.addWidget(title)
+        layout.addSpacing(10)
+        layout.addWidget(version)
+        layout.addWidget(author)
+        layout.addWidget(contact)
+        layout.addWidget(source)
+        layout.addWidget(base)
+        layout.addStretch()
+
+        close_button = QPushButton("关闭")
+        close_button.setFixedWidth(100)
+        close_button.clicked.connect(self.accept)
+        close_button.setStyleSheet("font-size: 12pt; padding: 6px;")
+        layout.addWidget(close_button, alignment=Qt.AlignCenter)
