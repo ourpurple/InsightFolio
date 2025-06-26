@@ -100,7 +100,7 @@ def render_html_with_katex(mistake_data, show_answer=True):
                 white-space: pre-wrap; /* 保留换行符和空格，以便KaTeX正确处理块公式 */
             }}
             .meta-info {{
-                color: #0056b3;
+                color: #FF33FF;
                 border-bottom: 2px solid #e9ecef;
                 padding-bottom: 5px;
                 margin-top: 15px;
