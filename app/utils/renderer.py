@@ -1,5 +1,6 @@
 # app/utils/renderer.py
 import os
+import base64
 
 def render_html_with_katex(mistake_data, show_answer=True):
     """
@@ -50,13 +51,31 @@ def render_html_with_katex(mistake_data, show_answer=True):
     # 构建题目图片部分
     image_html = ""
     if mistake_data.get('question_image') and os.path.exists(mistake_data['question_image']):
-        # 将本地图片路径转换为 file:/// URI
-        image_path = os.path.abspath(mistake_data['question_image']).replace('\\', '/')
-        image_html = f"""
-            <hr>
-            <h3>题目配图:</h3>
-            <img src="file:///{image_path}" alt="题目图片" style="max-width: 100%; height: auto;">
-        """
+        try:
+            # 读取图片并转换为base64
+            with open(mistake_data['question_image'], 'rb') as img_file:
+                img_data = img_file.read()
+                base64_data = base64.b64encode(img_data).decode('utf-8')
+            
+            # 获取图片MIME类型
+            ext = os.path.splitext(mistake_data['question_image'])[1].lower()
+            mime_type = f"image/{ext[1:]}" if ext else "image/jpeg"
+            
+            # 构建Data URI
+            data_uri = f"data:{mime_type};base64,{base64_data}"
+            
+            image_html = f"""
+                <hr>
+                <h3>题目配图:</h3>
+                <img src="{data_uri}" alt="题目图片" style="max-width: 100%; height: auto;">
+            """
+        except Exception as e:
+            print(f"Error loading image: {e}")
+            image_html = f"""
+                <hr>
+                <h3>题目配图:</h3>
+                <div style="color: red;">图片加载失败: {str(e)}</div>
+            """
 
     html_template = f"""
     <!DOCTYPE html>
