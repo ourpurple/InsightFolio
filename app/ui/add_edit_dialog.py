@@ -72,10 +72,12 @@ class AddEditDialog(QDialog):
 
         # 正确答案
         self.answer_edit = QTextEdit()
+        self.answer_edit.setFixedHeight(60)  # 设置为原高度的四分之一
         form_layout.addRow("正确答案:", self.answer_edit)
 
         # 错误原因
         self.reason_edit = QTextEdit()
+        self.reason_edit.setFixedHeight(60)  # 设置为原高度的四分之一
         form_layout.addRow("错误原因:", self.reason_edit)
 
         # 图片上传

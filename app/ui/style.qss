@@ -102,3 +102,29 @@ QHeaderView::section {
     font-weight: 600;
     font-size: 14px;
 }
+
+/* 右键菜单样式 */
+QMenu {
+    background-color: #ffffff;
+    border: 1px solid #99bbff;
+    border-radius: 6px;
+    padding: 4px;
+    font-family: "霞鹜文楷 GB 屏幕阅读版", serif;
+    font-size: 14px;
+    color: #000000;
+}
+
+QMenu::item {
+    padding: 6px 24px 6px 12px;
+    margin: 2px;
+    border-radius: 4px;
+}
+
+QMenu::item:selected {
+    background-color: #3399ff;
+    color: #ffffff;
+}
+
+QMenu::item:disabled {
+    color: #999999;
+}

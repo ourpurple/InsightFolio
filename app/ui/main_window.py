@@ -1,7 +1,7 @@
 # app/ui/main_window.py
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                                  QPushButton, QTableView, QComboBox, QLineEdit,
-                                  QHeaderView, QLabel, QMessageBox, QInputDialog, QFileDialog)
+                                  QHeaderView, QLabel, QMessageBox, QInputDialog, QFileDialog, QMenu)
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineSettings
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon, QPixmap
@@ -29,6 +29,9 @@ class MainWindow(QMainWindow):
         self._init_ui()
         self._connect_signals()
         self.load_mistakes()
+        # 设置表格支持右键菜单
+        self.table_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table_view.customContextMenuRequested.connect(self._show_context_menu)
 
     def _init_ui(self):
         """初始化UI界面"""
@@ -268,6 +271,28 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "错误", f"导出PDF失败: {e}")
 
+
+    def _show_context_menu(self, pos):
+        """显示表格的右键菜单"""
+        menu = QMenu()
+        
+        # 添加菜单项
+        add_action = menu.addAction("新增")
+        edit_action = menu.addAction("编辑")
+        delete_action = menu.addAction("删除")
+        
+        # 连接菜单项到现有方法
+        add_action.triggered.connect(self.add_mistake)
+        edit_action.triggered.connect(self.edit_mistake)
+        delete_action.triggered.connect(self.delete_mistake)
+        
+        # 根据选择状态设置菜单项可用性
+        has_selection = bool(self.table_view.selectionModel().selectedRows())
+        edit_action.setEnabled(has_selection)
+        delete_action.setEnabled(has_selection)
+        
+        # 显示菜单
+        menu.exec_(self.table_view.viewport().mapToGlobal(pos))
 
 class AboutDialog(QDialog):
     def __init__(self, parent=None):
