@@ -15,12 +15,12 @@
 
 ## 🛠️ 技术栈
 
-- **编程语言**: Python 3.9+
+- **编程语言**: Python 3.8+
 - **GUI 框架**: PySide6
 - **数据库**: SQLite 3
-- **LaTeX 渲染**: Matplotlib
-- **PDF 生成**: ReportLab
-- **桌面端打包**: PyInstaller
+- **LaTeX 渲染**: KaTeX (JavaScript)
+- **PDF 生成**: Qt WebEngine
+- **图像处理**: Qt Graphics
 
 ## 🚀 如何运行
 
@@ -43,7 +43,7 @@
     source venv/bin/activate
 
     # 安装依赖
-    pip install PySide6 matplotlib reportlab
+    pip install -r requirements.txt
     ```
 
 3.  **运行程序**

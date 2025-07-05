@@ -15,12 +15,12 @@ Insight Folio is a desktop application designed for primary and secondary school
 
 ## 🛠️ Technology Stack
 
-- **Programming Language**: Python 3.9+
+- **Programming Language**: Python 3.8+
 - **GUI Framework**: PySide6
 - **Database**: SQLite 3
-- **LaTeX Rendering**: Matplotlib
-- **PDF Generation**: ReportLab
-- **Desktop Packaging**: PyInstaller
+- **LaTeX Rendering**: KaTeX (JavaScript)
+- **PDF Generation**: Qt WebEngine
+- **Image Processing**: Qt Graphics
 
 ## 🚀 How to Run
 
@@ -43,7 +43,7 @@ Insight Folio is a desktop application designed for primary and secondary school
     source venv/bin/activate
 
     # Install dependencies
-    pip install PySide6 matplotlib reportlab
+    pip install -r requirements.txt
     ```
 
 3.  **Run the Application**

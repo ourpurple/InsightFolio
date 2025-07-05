@@ -2,7 +2,8 @@
 import sqlite3
 import os
 
-DB_FILE = "database/qisilu.db"
+# 使用绝对路径，确保数据库文件在项目根目录下
+DB_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "database", "qisilu.db")
 DB_DIR = os.path.dirname(DB_FILE)
 
 def init_db():

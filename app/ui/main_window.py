@@ -122,7 +122,7 @@ class MainWindow(QMainWindow):
         self.details_area = QWebEngineView()
         self.details_area.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
         
-# 删除“错题详情:”的 QLabel
+# 删除"错题详情:"的 QLabel
 # right_layout.addWidget(QLabel("错题详情:"))
         right_layout.addWidget(self.details_area)
         
@@ -139,6 +139,10 @@ class MainWindow(QMainWindow):
         self.filter_button.clicked.connect(self.load_mistakes)
         self.table_view.selectionModel().selectionChanged.connect(self.display_mistake_details)
         self.about_button.clicked.connect(self.show_about_dialog)
+        # 新增：下拉框选择后自动筛选
+        self.grade_filter.currentIndexChanged.connect(self.load_mistakes)
+        self.subject_filter.currentIndexChanged.connect(self.load_mistakes)
+        self.semester_filter.currentIndexChanged.connect(self.load_mistakes)
 
     def show_about_dialog(self):
         dialog = AboutDialog(self)

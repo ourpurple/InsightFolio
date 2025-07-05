@@ -3,15 +3,15 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QComboBox,
                                QTextEdit, QPushButton, QLabel,
                                QFileDialog, QHBoxLayout, QMessageBox)
 from PySide6.QtGui import QPixmap
-from PySide6.QtCore import QThread, Signal, Qt
+from PySide6.QtCore import QThread, Signal, Qt, QSize
 from datetime import datetime
 import uuid
 import os
 
 from app.data.database import add_mistake, get_mistake_by_id, update_mistake
 
-# 定义资源目录
-ASSETS_DIR = "assets/images"
+# 定义资源目录 - 使用绝对路径
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets", "images")
 
 class ImageCopyThread(QThread):
     copy_finished = Signal(str)
@@ -117,7 +117,7 @@ class AddEditDialog(QDialog):
             self.image_path = mistake['question_image']
             if self.image_path and os.path.exists(self.image_path):
                 pixmap = QPixmap(self.image_path)
-                self.image_preview.setPixmap(pixmap.scaled(self.image_preview.size().width(), self.image_preview.size().height(), Qt.KeepAspectRatio))
+                self.image_preview.setPixmap(pixmap.scaled(self.image_preview.size().width(), self.image_preview.size().height(), Qt.AspectRatioMode.KeepAspectRatio))
 
     def _upload_image(self):
         if not os.path.exists(ASSETS_DIR):
@@ -138,7 +138,7 @@ class AddEditDialog(QDialog):
                     print(f"Failed to load image from {self.image_path}")
                 else:
                     self.image_preview.clear()
-                    self.image_preview.setPixmap(pixmap.scaled(self.image_preview.size().width(), self.image_preview.size().height(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                    self.image_preview.setPixmap(pixmap.scaled(self.image_preview.size().width(), self.image_preview.size().height(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
                     self.image_preview.repaint()
 
             self.copy_thread = ImageCopyThread(file_path, dest_path)

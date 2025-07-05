@@ -7,8 +7,10 @@ from app.ui.main_window import MainWindow
 def main():
     """
     应用程序主函数。
-init_db()
     """
+    # 初始化数据库
+    init_db()
+    
     app = QApplication(sys.argv)
 
     # 加载全局样式表
