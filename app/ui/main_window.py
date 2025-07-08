@@ -28,6 +28,7 @@ class MainWindow(QMainWindow):
         self.mistake_service = MistakeService()
         self._init_ui()
         self._connect_signals()
+        self.semester_filter.currentIndexChanged.connect(self.load_mistakes)  # 强制确保信号连接
         self.load_mistakes()
         # 设置表格支持右键菜单
         self.table_view.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -70,8 +71,8 @@ class MainWindow(QMainWindow):
         self.filter_button = QPushButton("筛选")
         
         filter_layout.addWidget(self.grade_filter)
-        filter_layout.addWidget(self.subject_filter)
         filter_layout.addWidget(self.semester_filter)
+        filter_layout.addWidget(self.subject_filter)
         filter_layout.addWidget(self.keyword_filter)
         filter_layout.addWidget(self.filter_button)
         left_layout.addLayout(filter_layout)
@@ -79,7 +80,7 @@ class MainWindow(QMainWindow):
         # 错题表格
         self.table_view = QTableView()
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels(["ID", "年级", "学科", "学期", "录入日期", "错题摘要"])
+        self.model.setHorizontalHeaderLabels(["ID", "年级", "学期", "学科", "录入日期", "错题摘要"])
         self.table_view.setModel(self.model)
         self.table_view.setColumnHidden(0, True) # 隐藏ID列
         header = self.table_view.horizontalHeader()
@@ -88,8 +89,8 @@ class MainWindow(QMainWindow):
 
         # 设置列宽，单位像素，估算字符宽度约8像素
         self.table_view.setColumnWidth(1, 5 * 8)  # 年级
-        self.table_view.setColumnWidth(2, 4 * 8)  # 学科
-        self.table_view.setColumnWidth(3, 4 * 8)  # 学期
+        self.table_view.setColumnWidth(2, 4 * 8)  # 学期
+        self.table_view.setColumnWidth(3, 4 * 8)  # 学科
         self.table_view.setColumnWidth(4, 6 * 8)  # 录入日期
         self.table_view.setSelectionBehavior(QTableView.SelectRows)
         self.table_view.setEditTriggers(QTableView.NoEditTriggers)
@@ -152,6 +153,7 @@ class MainWindow(QMainWindow):
         """加载错题到表格"""
         filters = {
             "grade": self.grade_filter.currentText() if self.grade_filter.currentIndex() > 0 else "",
+            "semester": self.semester_filter.currentText() if self.semester_filter.currentIndex() > 0 else "",
             "subject": self.subject_filter.currentText() if self.subject_filter.currentIndex() > 0 else "",
             "question_desc": self.keyword_filter.text()
         }
@@ -234,23 +236,16 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "错误", f"删除失败: {e}")
 
     def start_review(self):
-        """开始随机复习"""
-        filters = {
-            "grade": self.grade_filter.currentText() if self.grade_filter.currentIndex() > 0 else "",
-            "semester": self.semester_filter.currentText() if self.semester_filter.currentIndex() > 0 else "",
-            "subject": self.subject_filter.currentText() if self.subject_filter.currentIndex() > 0 else "",
-        }
-        # Keyword filter for review is not in the spec, but can be added if needed.
-        # Let's stick to the spec for now.
-        
-        num, ok = QInputDialog.getInt(self, "随机抽取", "请输入要抽取的题目数量:", 5, 1, 100, 1)
-        
-        if ok:
+        """开始随机复习（弹出条件选择对话框）"""
+        from app.ui.review_dialog import ReviewConfigDialog
+        dialog = ReviewConfigDialog(self)
+        if dialog.exec():
+            filters, num = dialog.get_config()
+            from app.data.database import get_random_mistakes
             mistakes = get_random_mistakes(num, filters)
             if not mistakes:
                 QMessageBox.information(self, "提示", "没有找到符合条件的错题。")
                 return
-            
             review_dialog = ReviewDialog(mistakes, self)
             review_dialog.exec()
 
